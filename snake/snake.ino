@@ -1,7 +1,8 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
 Adafruit_SSD1306 oled(128, 64, &Wire, -1);
 
 #define RIGHT 0
@@ -11,15 +12,58 @@ Adafruit_SSD1306 oled(128, 64, &Wire, -1);
 
 //STICKBOX Pin
 #define pinX  A0
-#define pinY  A1
+#define pinY  A0
 
 int valueX = 0;
 int valueY = 0;
 unsigned char keyValue = 0;
-
+bool Connected = false;
 
 //Snake Value
+const char *ssid = "[Your WIFI SSID]";       
+const char *password = "[Your WIFI Password]";  
+WiFiUDP udp;
 
+unsigned int localUdpPort = 4210;  
+char incomingPacket[255];          
+IPAddress localIP;
+
+// int RecievePacket(){
+//   int integerPacket;
+//   int packetSize = udp.parsePacket();
+//   if (packetSize > 0) {
+//     // Read the incoming packet
+//     int len = udp.read(incomingPacket, 255);
+//     if (len > 0) {
+//       incomingPacket[len] = 0; 
+//     }
+//     integerPacket = (int)incomingPacket;
+//     Serial.printf("UDP packet received: %s\n", integerPacket);
+//   }
+//   delay(10);
+//   return integerPacket;
+// }
+void Connect(){
+Serial.begin(9600);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("Connected to Wi-Fi");
+
+  // Print local IP address
+  localIP = WiFi.localIP();
+  Serial.print("Local IP: ");
+  Serial.println(localIP);
+
+  // Start UDP
+  udp.begin(localUdpPort);
+  Serial.printf("Listening on UDP port %d\n", localUdpPort);
+  Connected = true;
+}
 const uint8_t block[] PROGMEM = {
   0xf0, //B1111000
   0xb0, //B1011000
@@ -45,48 +89,70 @@ int level = 1;
 int snake_speed = 150;
 int i;
 
-//按键扫描函数
+
 void keyScan(void)
 {
-  static unsigned char keyUp = 1;
+  int integerPacket;
+  int packetSize = udp.parsePacket();
+  if (packetSize > 0) {
+    // Read the incoming packet
+    int len = udp.read(incomingPacket, 255);
+    if (len > 0) {
+      incomingPacket[len] = 0; 
+    }
+    integerPacket = atoi(incomingPacket);
+  
+  delay(10);
+  }
+  if(integerPacket == 1){
+    snake_dir = UP;
+  }
+  if(integerPacket == 3){
+    snake_dir = DOWN;
+  }
+  if(integerPacket == 2){
+    snake_dir = RIGHT;
+  }
+  if(integerPacket == 4){
+    snake_dir = LEFT;
+  }
+//static unsigned char keyUp = 1;
+//   valueX = analogRead(pinX);
+//   valueY = analogRead(pinY);
 
-  valueX = analogRead(pinX);
-  valueY = analogRead(pinY);
-
-  if (keyUp && ((valueX <= 10) || (valueX >= 1010) || (valueY <= 10) || (valueY >= 1010)))
-  {
-    delay(10);
-    keyUp = 0;
-    if (valueX <= 10)
-    {
-      if (snake_dir != UP)
-      {
-        snake_dir = DOWN;
-      }
-    }
-    else if (valueX >= 1010)
-    {
-      if (snake_dir != DOWN)
-      {
-        snake_dir = UP;
-      }
-    }
-    else if (valueY <= 10)
-    {
-      if (snake_dir != RIGHT)
-      {
-        snake_dir = LEFT;
-      }
-    }
-    else if (valueY >= 1010)
-    {
-      if (snake_dir != LEFT)
-      {
-        snake_dir = RIGHT;
-      }
-    }
-  } else if ((valueX > 10) && (valueX < 1010) && (valueY > 10) && (valueY < 1010))keyUp = 1;
-  return 0;
+//   if (keyUp && ((valueX <= 10) || (valueX >= 1010) || (valueY <= 10) || (valueY >= 1010)))
+//   {
+//     delay(10);
+//     keyUp = 0;
+//     if (valueX <= 10)
+//     {
+//       if (snake_dir != UP)
+//       {
+//         snake_dir = DOWN;
+//       }
+//     }
+//     else if (valueX >= 1010)
+//     {
+//       if (snake_dir != DOWN)
+//       {
+//         snake_dir = UP;
+//       }
+//     }
+//     else if (valueY <= 10)
+//     {
+//       if (snake_dir != RIGHT)
+//       {
+//         snake_dir = LEFT;
+//       }
+//     }
+//     else if (valueY >= 1010)
+//     {
+//       if (snake_dir != LEFT)
+//       {
+//         snake_dir = RIGHT;
+//       }
+//     }
+//   } else if ((valueX > 10) && (valueX < 1010) && (valueY > 10) && (valueY < 1010))keyUp = 1;
 }
 
 void draw_snake(int x, int y)
@@ -96,21 +162,21 @@ void draw_snake(int x, int y)
 
 void show_score(int x, int y, int data)
 {
-  oled.setCursor(x, y);//设置显示位置
+  oled.setCursor(x, y);
   oled.println(data);
 
 }
 
 void screen(void)
 {
-  oled.clearDisplay();//清屏
-  oled.setTextSize(1); //设置字体大小
+  oled.clearDisplay();
+  oled.setTextSize(1); 
   oled.drawRect(0, 1, 102, 62, 1);
   oled.drawRect(0, 0, 102, 64, 1);
-  oled.setCursor(104, 12);//设置显示位置
-  oled.println("LEVE");
-  oled.setCursor(104, 40);//设置显示位置
-  oled.println("SCOR");
+  oled.setCursor(104, 12);
+  oled.println("LEVEL: ");
+  oled.setCursor(104, 40);
+  oled.println("SCORE: ");
 
   show_score(110, 25, level);
   show_score(110, 53, score);
@@ -128,7 +194,7 @@ void screen(void)
 
 void draw_food(void)
 {
-  int food_out = 0; //判断食物是否在蛇体内
+  int food_out = 0; 
 
   if (food_eaten)
   {
@@ -139,7 +205,7 @@ void draw_food(void)
       food_x = (uint8_t)(random(4, 100) / 4) * 4;
       food_y = (uint8_t)(random(4, 60) / 4) * 4;
 
-      for (int i = snake_len - 1; i > 0; i--) //遍历整个蛇身方块，若食物在蛇身内则重新生成
+      for (int i = snake_len - 1; i > 0; i--) 
       {
         if (food_x == x[i] && food_y == y[i])
         {
@@ -171,7 +237,7 @@ void snake_move(void)
 
   if ((snake_head_x == food_x) && (snake_head_y == food_y))
   {
-    food_eaten = true; //可重新生成食物
+    food_eaten = true; 
     snake_len++;
     score++;
     level = score / 5 + 1;
@@ -191,16 +257,16 @@ void snake_move(void)
 
 void draw_game_over()
 {
-  oled.clearDisplay();//清屏
-  oled.setTextSize(2); //设置字体大小
-  oled.setCursor(10, 10);//设置显示位置
+  oled.clearDisplay();
+  oled.setTextSize(2);
+  oled.setCursor(10, 10);
 
   oled.println("GAME OVER");
-  oled.setTextSize(1); //设置字体大小
-  oled.setCursor(30, 35);//设置显示位置
-  oled.println("LEVE:");
-  oled.setCursor(30, 55);//设置显示位置
-  oled.println("SCOR:");
+  oled.setTextSize(1); 
+  oled.setCursor(30, 35);
+  oled.println("LEVEL:");
+  oled.setCursor(30, 55);
+  oled.println("SCORE:");
 
   show_score(80, 35, level);
   show_score(80, 55, score);
@@ -235,13 +301,15 @@ void check_snake_die(void)
 void setup()
 {
   oled.begin(SSD1306_SWITCHCAPVCC, 0x3C);
-  oled.setTextColor(WHITE);//开像素点发光
-  randomSeed(analogRead(3));//初始化随机种子
+  oled.setTextColor(WHITE);
+  randomSeed(analogRead(3));
+  Connect();
 }
 
 
 void loop()
 {
+  if(Connected == true){
   if (game_over)
   {
     draw_game_over();
@@ -252,4 +320,10 @@ void loop()
     screen();
   }
   delay(snake_speed);
+  }else{
+    oled.clearDisplay();
+    oled.setTextSize(2);
+    oled.setCursor(10, 10);
+    oled.println("Connect to UDP");
+  }
 }
