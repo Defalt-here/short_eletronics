@@ -1,8 +1,8 @@
 <h1>Forked from Elecrow-RD/short_eletronics</h1>
-<p>A new way to control your OLED Games on ESP8266</p>
+<p>A new way to control your OLED Games on ESP8266 (Only the snake game as of now)</p>
 <h1>How to use</h1>
 <h2>Basic Idea</h2>
-Copy the code below for your Node MCU 1.0 ESP 8266 module then download the RoboRemo App on your mobile<br>
+Copy the code from the repo for your Node MCU 1.0 ESP 8266 module then download the RoboRemo App on your mobile<br>
 Using the RoboRemo's UI creator you can now configure buttons to send a packet with your desired content
 i.e. you can set the value of what a button sends when pressed as a UDP packet
 <h2>Connecting to Robo Remo</h2>
